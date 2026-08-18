@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>A股板块资金实时流向</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- 顶部栏 -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <h1>A股板块资金流向</h1>
+      <span class="badge" id="marketStatus">--</span>
+    </div>
+    <div class="topbar-right">
+      <span class="update-time" id="updateTime">加载中…</span>
+      <label class="switch" title="自动刷新">
+        <input type="checkbox" id="autoRefresh" checked />
+        <span class="slider"></span>
+      </label>
+      <span class="switch-label">自动刷新</span>
+      <button class="btn ghost" id="refreshBtn" title="立即刷新">⟳ 刷新</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- 大盘概览 -->
+    <section class="overview" id="overview">
+      <div class="overview-card total">
+        <div class="ov-label">沪深两市主力净流入</div>
+        <div class="ov-value" id="totalNet">--</div>
+        <div class="ov-sub" id="totalBreadth">--</div>
+      </div>
+      <div class="overview-card amount">
+        <div class="ov-label">沪深两市成交额</div>
+        <div class="ov-value" id="totalAmount">--</div>
+      </div>
+      <div class="overview-card index" id="indexCards"><!-- 动态渲染指数卡 --></div>
+    </section>
+
+    <!-- 左右两栏：板块数据(左) + 资金流向曲线(右) -->
+    <div class="main-grid">
+      <!-- 板块排行 -->
+      <section class="board-panel">
+        <div class="toolbar">
+          <div class="tabs" id="tabs">
+            <button class="tab active" data-type="industry">行业板块</button>
+            <button class="tab" data-type="concept">概念板块</button>
+            <button class="tab" data-type="stock">个股强度</button>
+          </div>
+          <div class="toolbar-right">
+            <button class="btn ghost" id="loadAllBtn">加载全部</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="board-table" id="boardTable">
+            <thead>
+              <tr>
+                <th class="col-rank">#</th>
+                <th class="col-name">名称</th>
+                <th class="col-pct num sortable" data-field="f3">涨跌幅 <span class="sort-arrow"></span></th>
+                <th class="col-flow num sortable" data-field="f62">主力净流入 <span class="sort-arrow"></span></th>
+                <th class="col-bar sortable" data-field="f62">资金强度 <span class="sort-arrow"></span></th>
+                <th class="col-ratio num sortable" data-field="f184">净占比 <span class="sort-arrow"></span></th>
+              </tr>
+            </thead>
+            <tbody id="boardBody">
+              <tr><td colspan="6" class="empty">加载中…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 盘中实时资金流向曲线 -->
+      <section class="chart-panel">
+        <div class="chart-head">
+          <h2>盘中实时资金流向</h2>
+          <div class="chart-controls">
+            <div class="tabs mini" id="chartTabs">
+              <button class="tab active" data-type="industry">行业</button>
+              <button class="tab" data-type="concept">概念</button>
+              <button class="tab" data-type="stock">个股</button>
+            </div>
+            <button class="btn ghost" id="chartClearBtn" title="刷新曲线数据">刷新</button>
+          </div>
+        </div>
+        <div class="chart-hint">流入 / 流出各 Top 10 · 盘中约 30 秒自动刷新</div>
+        <div class="chart-wrap">
+          <div id="chart" class="chart-canvas"></div>
+          <div id="chartSide" class="chart-side"></div>
+        </div>
+      </section>
+    </div>
+
+    <footer class="foot">
+      数据来源：东方财富公开行情接口 · 盘中约每 <span id="intervalLabel">5</span> 秒刷新一次 · 仅供行情参考，不构成投资建议
+    </footer>
+  </main>
+
+  <!-- 个股下钻抽屉 -->
+  <div class="drawer-mask" id="drawerMask"></div>
+  <aside class="drawer" id="drawer">
+    <div class="drawer-head">
+      <div>
+        <div class="drawer-title" id="drawerTitle">--</div>
+        <div class="drawer-sub" id="drawerSub">--</div>
+      </div>
+      <button class="btn ghost close" id="drawerClose">✕</button>
+    </div>
+    <div class="drawer-body">
+      <table class="stock-table" id="stockTable">
+        <thead>
+          <tr>
+            <th class="num">#</th>
+            <th>代码</th>
+            <th>名称</th>
+            <th class="num sortable" data-field="f3">涨跌幅 <span class="sort-arrow"></span></th>
+            <th class="num sortable" data-field="f62">主力净流入 <span class="sort-arrow"></span></th>
+            <th class="num sortable" data-field="f184">净占比 <span class="sort-arrow"></span></th>
+            <th class="num sortable" data-field="f20">总市值 <span class="sort-arrow"></span></th>
+            <th class="num sortable" data-field="f21">流通市值 <span class="sort-arrow"></span></th>
+          </tr>
+        </thead>
+        <tbody id="stockBody">
+          <tr><td colspan="8" class="empty">加载中…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </aside>
+
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
