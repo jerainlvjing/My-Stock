@@ -45,10 +45,12 @@ const IN_PALETTE = ['#d93a2b', '#e08a00', '#db2777', '#7c3aed', '#c2410c', '#be1
 const OUT_PALETTE = ['#0f9d58', '#0891b2', '#2563eb', '#059669', '#0e7490', '#1d4ed8', '#047857', '#155e75', '#15803d', '#1e40af'];
 const chartState = {
   type: 'industry',
-  flows: {},              // { code: { name, times: [], values: [], color } }
+  flows: {},              // { code: { name, times: [], values: [], color, group } }
   echarts: null,
   timer: null,
   loading: false,
+  hoverGroup: null,       // 当前悬停的组：'in' 流入 / 'out' 流出 / null
+  hoveredIndex: -1,       // 当前悬停的 seriesIndex（用于 tooltip 行高亮）
 };
 
 // 个股下钻列表排序状态
@@ -365,6 +367,20 @@ function initChart() {
     if (code) openDrawer(code, params.seriesName);
   });
 
+  // 悬停线 → 记录悬停的组和 seriesIndex（tooltip 按组过滤 + 对应行高亮）
+  chartState.echarts.on('mouseover', (params) => {
+    if (params.seriesIndex == null) return;
+    chartState.hoveredIndex = params.seriesIndex;
+    const code = chartState.seriesOrder && chartState.seriesOrder[params.seriesIndex];
+    const flow = code && chartState.flows[code];
+    chartState.hoverGroup = flow ? flow.group : null;
+  });
+  // 鼠标离开图表 → 重置悬停状态
+  chartState.echarts.on('globalout', () => {
+    chartState.hoveredIndex = -1;
+    chartState.hoverGroup = null;
+  });
+
   renderChart();
 }
 
@@ -402,13 +418,13 @@ async function loadChartData() {
       if (seen.has(b.f12)) return;
       seen.add(b.f12);
       const secid = isStock ? secidOf(b.f12) : '90.' + b.f12;
-      tasks.push(fetchBoardFlow(secid).then((flow) => ({ code: b.f12, name: b.f14, flow, color: IN_PALETTE[i % IN_PALETTE.length] })));
+      tasks.push(fetchBoardFlow(secid).then((flow) => ({ code: b.f12, name: b.f14, flow, color: IN_PALETTE[i % IN_PALETTE.length], group: 'in' })));
     });
     outflow.list.forEach((b, i) => {
       if (seen.has(b.f12)) return;
       seen.add(b.f12);
       const secid = isStock ? secidOf(b.f12) : '90.' + b.f12;
-      tasks.push(fetchBoardFlow(secid).then((flow) => ({ code: b.f12, name: b.f14, flow, color: OUT_PALETTE[i % OUT_PALETTE.length] })));
+      tasks.push(fetchBoardFlow(secid).then((flow) => ({ code: b.f12, name: b.f14, flow, color: OUT_PALETTE[i % OUT_PALETTE.length], group: 'out' })));
     });
     const results = await Promise.all(tasks);
     const flows = {};
@@ -432,6 +448,7 @@ async function loadChartData() {
         times,
         values,
         color: item.color,
+        group: item.group,
       };
     });
     chartState.flows = flows;
@@ -508,14 +525,26 @@ function buildChartOption() {
       },
       formatter: (params) => {
         if (!params || !params.length) return '';
+        // 个股 Tab：按悬停的组过滤，只显示流入组或流出组（避免 20 条显示不开）
+        let list = params;
+        if (chartState.type === 'stock' && chartState.hoverGroup) {
+          const filtered = params.filter((p) => {
+            const code = chartState.seriesOrder[p.seriesIndex];
+            const flow = code && chartState.flows[code];
+            return flow && flow.group === chartState.hoverGroup;
+          });
+          if (filtered.length) list = filtered;
+        }
         const t = params[0].axisValue;
         let html = `<div style="font-size:12px;margin-bottom:4px">${t}</div>`;
-        params.slice().sort((a, b) => b.value - a.value).forEach((p) => {
+        list.slice().sort((a, b) => b.value - a.value).forEach((p) => {
           const v = p.value;
           const c = v > 0 ? '#e03e2d' : v < 0 ? '#0f9d58' : '#8a919f';
-          html += `<div style="display:flex;justify-content:space-between;gap:12px;font-size:12px;margin:2px 0">
-            <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};margin-right:6px"></span>${p.seriesName}</span>
-            <span style="color:${c};font-weight:600">${fmtYi2(v)}</span>
+          const isHovered = p.seriesIndex === chartState.hoveredIndex;
+          const rowStyle = isHovered ? `background:${p.color}1f;box-shadow:inset 3px 0 0 ${p.color};font-weight:700;` : '';
+          html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12px;margin:2px 0;padding:2px 4px;border-radius:4px;${rowStyle}">
+            <span style="${isHovered ? 'font-weight:700' : ''}"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};margin-right:6px"></span>${p.seriesName}</span>
+            <span style="color:${c};font-weight:${isHovered ? 700 : 600}">${fmtYi2(v)}</span>
           </div>`;
         });
         return html;
